@@ -1,36 +1,44 @@
-import  { Request, Response, Router } from "express";
+import { Request, Response, Router, RequestHandler } from "express";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 const router = Router();
 
-/**
- * POST /register
- * Registers a new user with a username, email, and hashed master password.
- */
-router.post("/register", async (req: any, res: any) => {
+interface RegisterRequestBody {
+  username: string;
+  email: string;
+  masterPassword: string;
+}
+
+interface LoginRequestBody {
+  email: string;
+  masterPassword: string;
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+
+const registerHandler: RequestHandler<{}, any, RegisterRequestBody> = async (req, res) => {
   try {
     const { username, email, masterPassword } = req.body;
 
-    // Validate input
     if (!username || !email || !masterPassword) {
-      return res.status(400).json({ error: "All fields are required." });
+      res.status(400).json({ error: "All fields are required." });
+      return;
     }
 
-    // Check if the user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: "User already exists." });
+      res.status(400).json({ error: "User already exists." });
+      return;
     }
 
-    // Hash the master password
     const hashedMasterPassword = await bcrypt.hash(masterPassword, 10);
 
-    // Create the new user in the database
     const newUser = await prisma.user.create({
       data: {
         username,
@@ -39,9 +47,11 @@ router.post("/register", async (req: any, res: any) => {
       },
     });
 
-    // Return the user details (excluding the hashed password)
-    return res.status(201).json({
+    const token = jwt.sign({ userId: newUser.id }, JWT_SECRET, { expiresIn: "1h" });
+
+    res.status(201).json({
       message: "User registered successfully.",
+      token,
       user: {
         id: newUser.id,
         username: newUser.username,
@@ -50,48 +60,40 @@ router.post("/register", async (req: any, res: any) => {
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Internal server error." });
+    res.status(500).json({ error: "Internal server error." });
   }
-});
+};
 
-/**
- * POST /login
- * Logs in a user by validating email and password, and returns a JWT token.
- */
-router.post("/login", async (req: any, res: any) => {
+const loginHandler: RequestHandler<{}, any, LoginRequestBody> = async (req, res) => {
   try {
     const { email, masterPassword } = req.body;
 
-    // Validate input
     if (!email || !masterPassword) {
-      return res.status(400).json({ error: "All fields are required." });
+      res.status(400).json({ error: "All fields are required." });
+      return;
     }
 
-    // Check if the user exists
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
-      return res.status(400).json({ error: "Invalid email or password." });
+      res.status(400).json({ error: "Invalid email or password." });
+      return;
     }
 
-    // Verify the master password
     const isPasswordValid = await bcrypt.compare(masterPassword, user.hashedMasterPassword);
 
     if (!isPasswordValid) {
-      return res.status(400).json({ error: "Invalid email or password." });
+      res.status(400).json({ error: "Invalid email or password." });
+      return;
     }
 
-    // Generate a JWT token (You can implement this part later if needed)
-    // const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!, {
-    //   expiresIn: "1h",
-    // });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
 
-    // Return success response
-    return res.status(200).json({
+    res.status(200).json({
       message: "Login successful.",
-      // token,
+      token,
       user: {
         id: user.id,
         username: user.username,
@@ -100,8 +102,11 @@ router.post("/login", async (req: any, res: any) => {
     });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: "Internal server error." });
+    res.status(500).json({ error: "Internal server error." });
   }
-});
+};
+
+router.post("/register", registerHandler);
+router.post("/login", loginHandler);
 
 export default router;
