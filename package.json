@@ -4,6 +4,7 @@
   "description": "Password manager to get rid of daily problem :)",
   "main": "index.js",
   "scripts": {
+    "dev": "ts-node-dev src/index.ts",
     "test": "jest"
   },
   "author": "",
