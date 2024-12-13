@@ -1,44 +1,40 @@
-import { Request, Response, Router, RequestHandler } from "express";
+import { Request, Response, Router } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-const router = Router();
+ const router = Router();
 
-interface RegisterRequestBody {
-  username: string;
-  email: string;
-  masterPassword: string;
-}
-
-interface LoginRequestBody {
-  email: string;
-  masterPassword: string;
-}
-
+// Secret key for JWT (ensure this is stored in an environment variable)
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
-const registerHandler: RequestHandler<{}, any, RegisterRequestBody> = async (req, res) => {
+/**
+ * POST /register
+ * Registers a new user with a username, email, and hashed master password.
+ */
+router.post("/register", async (req:any, res: any) => {
   try {
     const { username, email, masterPassword } = req.body;
 
+    // Validate input
     if (!username || !email || !masterPassword) {
-      res.status(400).json({ error: "All fields are required." });
-      return;
+      return res.status(400).json({ error: "All fields are required." });
     }
 
+    // Check if the user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
-      res.status(400).json({ error: "User already exists." });
-      return;
+      return res.status(400).json({ error: "User already exists." });
     }
 
+    // Hash the master password
     const hashedMasterPassword = await bcrypt.hash(masterPassword, 10);
 
+    // Create the new user in the database
     const newUser = await prisma.user.create({
       data: {
         username,
@@ -47,9 +43,11 @@ const registerHandler: RequestHandler<{}, any, RegisterRequestBody> = async (req
       },
     });
 
+    // Generate a JWT token
     const token = jwt.sign({ userId: newUser.id }, JWT_SECRET, { expiresIn: "1h" });
 
-    res.status(201).json({
+    // Return the user details and token
+    return res.status(201).json({
       message: "User registered successfully.",
       token,
       user: {
@@ -60,38 +58,44 @@ const registerHandler: RequestHandler<{}, any, RegisterRequestBody> = async (req
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error." });
+    return res.status(500).json({ error: "Internal server error." });
   }
-};
+});
 
-const loginHandler: RequestHandler<{}, any, LoginRequestBody> = async (req, res) => {
+/**
+ * POST /login
+ * Logs in a user by validating email and password, and returns a JWT token.
+ */
+router.post("/login", async (req: any, res: any) => {
   try {
     const { email, masterPassword } = req.body;
 
+    // Validate input
     if (!email || !masterPassword) {
-      res.status(400).json({ error: "All fields are required." });
-      return;
+      return res.status(400).json({ error: "All fields are required." });
     }
 
+    // Check if the user exists
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
-      res.status(400).json({ error: "Invalid email or password." });
-      return;
+      return res.status(400).json({ error: "Invalid email or password." });
     }
 
+    // Verify the master password
     const isPasswordValid = await bcrypt.compare(masterPassword, user.hashedMasterPassword);
 
     if (!isPasswordValid) {
-      res.status(400).json({ error: "Invalid email or password." });
-      return;
+      return res.status(400).json({ error: "Invalid email or password." });
     }
 
+    // Generate a JWT token
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "1h" });
 
-    res.status(200).json({
+    // Return success response
+    return res.status(200).json({
       message: "Login successful.",
       token,
       user: {
@@ -102,11 +106,8 @@ const loginHandler: RequestHandler<{}, any, LoginRequestBody> = async (req, res)
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Internal server error." });
+    return res.status(500).json({ error: "Internal server error." });
   }
-};
-
-router.post("/register", registerHandler);
-router.post("/login", loginHandler);
+});
 
 export default router;
