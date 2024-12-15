@@ -1,12 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-
-
-
 const prisma = new PrismaClient();
-
-
-
 
 test("Should create a new user", async () => {
   const newUser = await prisma.user.create({
