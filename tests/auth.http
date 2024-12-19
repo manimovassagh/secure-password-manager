@@ -16,6 +16,7 @@ Content-Type: application/json
   "email": "test_user44@example.com",
   "masterPassword": "securepassword123"
 }
+//write an api test
 
 
 ### Register a New User
