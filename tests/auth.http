@@ -10,8 +10,6 @@ Content-Type: application/json
   "masterPassword": "securepassword123"
 }
 
-
-
 ### Login a User
 POST http://localhost:4000/api/auth/login
 Content-Type: application/json
