@@ -16,3 +16,23 @@ Content-Type: application/json
   "email": "test_user44@example.com",
   "masterPassword": "securepassword123"
 }
+
+
+### Register a New User
+POST http://localhost:4000/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "test_user4436",
+  "email": "test_user4436@example.com",  // Fixed email to match username
+  "masterPassword": "securepassword123"
+}
+
+### Login a User
+POST http://localhost:4000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test_user4436@example.com",  // Fixed email to match registered user
+  "masterPassword": "securepassword123"
+}
