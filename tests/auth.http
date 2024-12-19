@@ -2,11 +2,16 @@
 POST http://localhost:4000/api/auth/register
 Content-Type: application/json
 
+
+
 {
   "username": "test_user4436",
   "email": "test_user3446@example.com",
   "masterPassword": "securepassword123"
 }
+
+
+
 
 
 ### Login a User
